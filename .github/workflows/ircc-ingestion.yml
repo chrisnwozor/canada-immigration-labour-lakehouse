@@ -12,10 +12,27 @@ jobs:
     steps:
       - name: Download IRCC JSON
         run: |
-          curl -fL \
+          curl --fail --location --show-error \
             "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json" \
-            -o ircc_draws.json
+            --output ircc_draws.json
 
-      - name: Check downloaded file
+      - name: Validate JSON
         run: |
-          ls -lh ircc_draws.json
+          jq -e '.rounds | type == "array" and length > 0' ircc_draws.json
+
+      - name: Upload JSON to Databricks
+        env:
+          DATABRICKS_HOST: ${{ secrets.DATABRICKS_HOST }}
+          DATABRICKS_TOKEN: ${{ secrets.DATABRICKS_TOKEN }}
+        run: |
+          TIMESTAMP=$(date -u +%Y%m%dT%H%M%SZ)
+          FILE_PATH="/Volumes/canada_intelligence/bronze/landing/ircc_express_entry/ircc_${TIMESTAMP}_${GITHUB_RUN_ID}.json"
+
+          curl --fail-with-body --show-error \
+            --request PUT \
+            --header "Authorization: Bearer ${DATABRICKS_TOKEN}" \
+            --header "Content-Type: application/octet-stream" \
+            --data-binary @ircc_draws.json \
+            "${DATABRICKS_HOST%/}/api/2.0/fs/files${FILE_PATH}?overwrite=false"
+
+          echo "Uploaded: ${FILE_PATH}"
