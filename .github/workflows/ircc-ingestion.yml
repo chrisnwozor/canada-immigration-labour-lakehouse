@@ -1,0 +1,21 @@
+name: IRCC API Ingestion
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 12 * * *"
+
+jobs:
+  extract:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Download IRCC JSON
+        run: |
+          curl -fL \
+            "https://www.canada.ca/content/dam/ircc/documents/json/ee_rounds_123_en.json" \
+            -o ircc_draws.json
+
+      - name: Check downloaded file
+        run: |
+          ls -lh ircc_draws.json
